@@ -147,7 +147,7 @@
   }
 
   function queryFirmware() {
-    var output = new Uint8Array([START_SYSEX, 0x11, 0x00, END_SYSEX]);
+    var output = new Uint8Array([START_SYSEX, QUERY_FIRMWARE, END_SYSEX]);
     device.send(output.buffer);
   }
 
