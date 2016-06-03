@@ -29,6 +29,9 @@
     CAPABILITY_QUERY = 0x6B,
     CAPABILITY_RESPONSE = 0x6C;
 
+  var CURIE_IMU = 0x11,
+    CURIE_IMU_READ_TEMP = 0x02;
+
   var INPUT = 0x00,
     OUTPUT = 0x01,
     ANALOG = 0x02,
@@ -480,7 +483,11 @@
   };
 
   ext.temperatureSensorRead = function() {
-    return [0, 0]
+    console.log('Querying emperature');
+    var msg = new Uint8Array([
+        START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
+    device.send(msg.buffer);
+    return;
   };
 
   ext._getStatus = function() {
@@ -574,9 +581,9 @@
       ['h', 'when analog %n %m.ops %n%', 'whenAnalogRead', 1, '>', 50],
       ['r', 'read analog %n', 'analogRead', 0],
       ['-'],
-      ['r', 'map %n from %n %n to %n %n', 'mapValues', 50, 0, 100, -240, 240]
+      ['r', 'map %n from %n %n to %n %n', 'mapValues', 50, 0, 100, -240, 240],
       ['-'],
-      ['r', 'read internal temperature sensor', 'temperatureSensorRead']
+      ['r', 'read temperature sensor', 'temperatureSensorRead']
     ],
     fr: [
       ['h', "Quand l'appareil est connecté", 'whenConnected'],
@@ -607,7 +614,7 @@
       ['-'],
       ['r', 'Mapper %n de %n %n à %n %n', 'mapValues', 50, 0, 100, -240, 240],
       ['-'],
-      ['r', 'Lire capteur interne de température', 'temperatureSensorRead']
+      ['r', 'Lire capteur de température', 'temperatureSensorRead']
     ]
   };
 
