@@ -82,7 +82,7 @@
   var notifyConnection = false;
   var device = null;
   var inputData = null;
-  var isQueryingCurieImuTemperature = false;
+  var curieImuData = {};
 
   // TEMPORARY WORKAROUND
   // Since _deviceRemoved is not used with Serial devices
@@ -145,6 +145,7 @@
           return;
         }
         queryFirmware();
+        queryCurieImu();
         pinging = true;
       }
     }, 1000);
@@ -160,6 +161,19 @@
   function queryFirmware() {
     var output = new Uint8Array([START_SYSEX, QUERY_FIRMWARE, END_SYSEX]);
     device.send(output.buffer);
+  }
+
+  function queryCurieImu() {
+    // Query temperature
+    console.log('Querying Curie IMU Temperature');
+    var msg = new Uint8Array([
+        START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
+    device.send(msg.buffer);
+    // Query accelerometer
+    console.log('Querying Curie IMU Motion');
+    var msg = new Uint8Array([
+        START_SYSEX, CURIE_IMU, CURIE_IMU_READ_MOTION, END_SYSEX]);
+    device.send(msg.buffer);
   }
 
   function queryCapabilities() {
@@ -229,23 +243,21 @@
       notifyConnection = false;
     }, 100);
   }
-  SYSEX_RESPONSE[CURIE_IMU] = function(data) {
-    console.log("Received data from Curie: ", data);
-
-    if (data.length % 2 !== 0) {
-        console.log("Board.decode(data) called with odd number of data bytes");
-    } else {
-        console.log("Start parsing data (length "+ data.length + ") ...");
-        console.log("End parsing data ...");
-    }
-    isQueryingCurieImuTemperature = false;
+  SYSEX_RESPONSE[CURIE_IMU_READ_TEMP] = function(data) {
+     curieImuData[CURIE_IMU_READ_TEMP] = data[4];
+  }
+  SYSEX_RESPONSE[CURIE_IMU_READ_MOTION] = function(data) {
+     curieImuData[CURIE_IMU_READ_MOTION] = data;
   }
 
   function processSysexMessage() {
     var subCommand = storedInputData[0];
-    console.log("subCommand:", subCommand.toString(16));
+    // Check if subcommand is Curie IMU request
+    if (subCommand == CURIE_IMU) {
+        subCommand = storedInputData[1];
+    }
     if (!SYSEX_RESPONSE[subCommand]) {
-       console.log("Unknown subCommand: ", subCommand.toString(16));
+      console.log("Unknown SYSEX command: ", subCommand.toString(16));
       return;
     }
     SYSEX_RESPONSE[subCommand](storedInputData);
@@ -509,13 +521,27 @@
   };
 
   // CURIE FEATURES
+  ext.whenTemperatureSensorRead = function(op, val) {
+    if (!curieImuData[CURIE_IMU_READ_TEMP]) return;
+    if (op == '>')
+      return curieImuData[CURIE_IMU_READ_TEMP] > val;
+    else if (op == '<')
+      return curieImuData[CURIE_IMU_READ_TEMP] < val;
+    else if (op == '=')
+      return curieImuData[CURIE_IMU_READ_TEMP] == val;
+    else
+      return false;
+  };
+
   ext.temperatureSensorRead = function() {
-    if (!isQueryingCurieImuTemperature) {
-        console.log('Querying temperature');
-        var msg = new Uint8Array([
-            START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
-        device.send(msg.buffer);
-        isQueryingCurieImuTemperature = true;
+    if (curieImuData[CURIE_IMU_READ_TEMP]) {
+        return curieImuData[CURIE_IMU_READ_TEMP];
+    }
+    return;
+  };
+  ext.motionSensorRead = function() {
+    if (curieImuData[CURIE_IMU_READ_MOTION]) {
+        return curieImuData[CURIE_IMU_READ_MOTION];
     }
     return;
   };
@@ -614,7 +640,10 @@
       ['-'],
       ['r', 'map %n from %n %n to %n %n', 'mapValues', 50, 0, 100, -240, 240],
       ['-'],
-      ['r', 'read temperature sensor', 'temperatureSensorRead']
+      ['h', 'when temperature is %m.ops %n °C', 'whenTemperatureSensorRead', '>', 25],
+      ['r', 'read temperature sensor', 'temperatureSensorRead'],
+      ['-'],
+      ['r', 'read motion sensor', 'motionSensorRead']
     ],
     fr: [
       ['h', "Quand l'appareil est connecté", 'whenConnected'],
@@ -645,7 +674,10 @@
       ['-'],
       ['r', 'Mapper %n de %n %n à %n %n', 'mapValues', 50, 0, 100, -240, 240],
       ['-'],
-      ['r', 'Lire capteur de température', 'temperatureSensorRead']
+      ['h', 'Quand la température est %m.ops %n °C', 'whenTemperatureSensorRead', '>', 25],
+      ['r', 'Lire capteur de température', 'temperatureSensorRead'],
+      ['-'],
+      ['r', 'Lire capteur motion', 'motionSensorRead']
     ]
   };
 
