@@ -22,7 +22,7 @@
     START_SYSEX = 0xF0,
     END_SYSEX = 0xF7,
     QUERY_FIRMWARE = 0x79,
-    REPORT_VERSION = 0xF9quer,
+    REPORT_VERSION = 0xF9,
     ANALOG_MESSAGE = 0xE0,
     ANALOG_MAPPING_QUERY = 0x69,
     ANALOG_MAPPING_RESPONSE = 0x6A,
@@ -231,19 +231,12 @@
   }
   SYSEX_RESPONSE[CURIE_IMU] = function(data) {
     console.log("Received data from Curie: ", data);
-    var decoded = [];
 
     if (data.length % 2 !== 0) {
         console.log("Board.decode(data) called with odd number of data bytes");
         isQueryingCurieImuTemperature = false;
     } else {
-        console.log("Start parsing data ...");
-        while (data.length) {
-            var lsb = data & 0xFF;
-            var msb = (data >> 8) & 0xFF;
-            decoded.push(lsb | (msb << 7));
-        }
-        console.log('Decoded data: ', decode)
+        console.log("Start parsing data (length "+ data.length + ") ...");
         isQueryingCurieImuTemperature = false;
         console.log("End parsing data ...");
     }
