@@ -203,7 +203,7 @@
   }
   SYSEX_RESPONSE[CAPABILITY_RESPONSE] = function(data) {
     for (var i = 1, pin = 0; pin < MAX_PINS; pin++) {
-      while (data[i++] != 0x7F) {
+      while (data[i++] != IGNORE) {
         pinModes[data[i-1]].push(pin);
         i++; //Skip mode resolution
       }
@@ -228,10 +228,21 @@
       notifyConnection = false;
     }, 100);
   }
+  SYSEX_RESPONSE[CURIE_IMU] = function(data) {
+    console.log("Received data from Curie: ", data);
+    console.log("Start parsing data ...");
+
+    for (var i = 1; i < data.length; i++) {
+        console.log(data[i], data[i].toString(16));
+    }
+    console.log("End parsing data ...");
+  }
 
   function processSysexMessage() {
     var subCommand = storedInputData[0];
+    console.log("subCommand:", subCommand.toString(16));
     if (!SYSEX_RESPONSE[subCommand]) {
+       console.log("Unknown subCommand: ", subCommand.toString(16));
       return;
     }
     SYSEX_RESPONSE[subCommand](storedInputData);
@@ -538,7 +549,7 @@
 
     poller = setInterval(function() {
       queryFirmware();
-    }, 1000);
+    }, 10000);
 
     watchdog = setTimeout(function() {
       clearInterval(poller);
