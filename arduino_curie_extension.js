@@ -30,7 +30,13 @@
     CAPABILITY_RESPONSE = 0x6C;
 
   var CURIE_IMU = 0x11,
+    CURIE_IMU_READ_ACCEL = 0x00;
+    CURIE_IMU_READ_GYRO = 0x01;
     CURIE_IMU_READ_TEMP = 0x02;
+    CURIE_IMU_SHOCK_DETECT = 0x03;
+    CURIE_IMU_STEP_COUNTER = 0x04;
+    CURIE_IMU_TAP_DETECT = 0x05;
+    CURIE_IMU_READ_MOTION = 0x06;
 
   var INPUT = 0x00,
     OUTPUT = 0x01,
@@ -264,9 +270,12 @@
             executeMultiByteCommand = command;
             break;
           case START_SYSEX:
+            console.log("received START_SYSEX");
             parsingSysex = true;
             sysexBytesRead = 0;
             break;
+          case END_SYSEX:
+            console.log("received END_SYSEX");
         }
       }
     }
@@ -482,13 +491,15 @@
     return Math.round(output);
   };
 
+  // CURIE FEATURES
   ext.temperatureSensorRead = function() {
-    console.log('Querying emperature');
+    console.log('Querying temperature');
     var msg = new Uint8Array([
         START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
     device.send(msg.buffer);
     return;
   };
+  // END CURIE FEATURES
 
   ext._getStatus = function() {
     if (!connected)
