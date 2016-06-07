@@ -147,7 +147,7 @@
         queryFirmware();
         pinging = true;
       }
-    }, 100);
+    }, 1000);
   }
 
   function hasCapability(pin, mode) {
@@ -234,12 +234,11 @@
 
     if (data.length % 2 !== 0) {
         console.log("Board.decode(data) called with odd number of data bytes");
-        isQueryingCurieImuTemperature = false;
     } else {
         console.log("Start parsing data (length "+ data.length + ") ...");
-        isQueryingCurieImuTemperature = false;
         console.log("End parsing data ...");
     }
+    isQueryingCurieImuTemperature = false;
   }
 
   function processSysexMessage() {
