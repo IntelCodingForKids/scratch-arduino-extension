@@ -82,6 +82,7 @@
   var notifyConnection = false;
   var device = null;
   var inputData = null;
+  var isQueryingCurieImuTemperature = false;
 
   // TEMPORARY WORKAROUND
   // Since _deviceRemoved is not used with Serial devices
@@ -230,12 +231,22 @@
   }
   SYSEX_RESPONSE[CURIE_IMU] = function(data) {
     console.log("Received data from Curie: ", data);
-    console.log("Start parsing data ...");
+    var decoded = [];
 
-    for (var i = 1; i < data.length; i++) {
-        console.log(data[i], data[i].toString(16));
+    if (data.length % 2 !== 0) {
+        console.log("Board.decode(data) called with odd number of data bytes");
+        isQueryingCurieImuTemperature = false;
+    } else {
+        console.log("Start parsing data ...");
+        while (data.length) {
+            var lsb = data.shift();
+            var msb = data.shift();
+            decoded.push(lsb | (msb << 7));
+        }
+        console.log('Decoded data: ', decode)
+        isQueryingCurieImuTemperature = false;
+        console.log("End parsing data ...");
     }
-    console.log("End parsing data ...");
   }
 
   function processSysexMessage() {
@@ -507,10 +518,13 @@
 
   // CURIE FEATURES
   ext.temperatureSensorRead = function() {
-    console.log('Querying temperature');
-    var msg = new Uint8Array([
-        START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
-    device.send(msg.buffer);
+    if (!isQueryingCurieImuTemperature) {
+        console.log('Querying temperature');
+        var msg = new Uint8Array([
+            START_SYSEX, CURIE_IMU, CURIE_IMU_READ_TEMP, END_SYSEX]);
+        device.send(msg.buffer);
+        isQueryingCurieImuTemperature = true;
+    }
     return;
   };
   // END CURIE FEATURES
