@@ -60,6 +60,7 @@
   var MAX_PINS = 128;
 
   var parsingSysex = false,
+    SYSEX_RESPONSE = {},
     waitForData = 0,
     executeMultiByteCommand = 0,
     multiByteChannel = 0,
@@ -187,48 +188,53 @@
     minorVersion = minor;
   }
 
-  function processSysexMessage() {
-    switch(storedInputData[0]) {
-      case CAPABILITY_RESPONSE:
-        for (var i = 1, pin = 0; pin < MAX_PINS; pin++) {
-          while (storedInputData[i++] != 0x7F) {
-            pinModes[storedInputData[i-1]].push(pin);
-            i++; //Skip mode resolution
-          }
-          if (i == sysexBytesRead) break;
-        }
-        queryAnalogMapping();
-        break;
-      case ANALOG_MAPPING_RESPONSE:
-        for (var pin = 0; pin < analogChannel.length; pin++)
-          analogChannel[pin] = 127;
-        for (var i = 1; i < sysexBytesRead; i++)
-          analogChannel[i-1] = storedInputData[i];
-        for (var pin = 0; pin < analogChannel.length; pin++) {
-          if (analogChannel[pin] != 127) {
-            var out = new Uint8Array([
-                REPORT_ANALOG | analogChannel[pin], 0x01]);
-            device.send(out.buffer);
-          }
-        }
-        notifyConnection = true;
-        setTimeout(function() {
-          notifyConnection = false;
-        }, 100);
-        break;
-      case QUERY_FIRMWARE:
-        if (!connected) {
-          clearInterval(poller);
-          poller = null;
-          clearTimeout(watchdog);
-          watchdog = null;
-          connected = true;
-          setTimeout(init, 200);
-        }
-        pinging = false;
-        pingCount = 0;
-        break;
+  /* Process SysEx messages*/
+  SYSEX_RESPONSE[QUERY_FIRMWARE] = function(data) {
+    if (!connected) {
+      clearInterval(poller);
+      poller = null;
+      clearTimeout(watchdog);
+      watchdog = null;
+      connected = true;
+      setTimeout(init, 200);
     }
+    pinging = false;
+    pingCount = 0;
+  }
+  SYSEX_RESPONSE[CAPABILITY_RESPONSE] = function(data) {
+    for (var i = 1, pin = 0; pin < MAX_PINS; pin++) {
+      while (data[i++] != 0x7F) {
+        pinModes[data[i-1]].push(pin);
+        i++; //Skip mode resolution
+      }
+      if (i == sysexBytesRead) break;
+    }
+    queryAnalogMapping();
+  }
+  SYSEX_RESPONSE[ANALOG_MAPPING_RESPONSE] = function(data) {
+    for (var pin = 0; pin < analogChannel.length; pin++)
+      analogChannel[pin] = 127;
+    for (var i = 1; i < sysexBytesRead; i++)
+      analogChannel[i-1] = data[i];
+    for (var pin = 0; pin < analogChannel.length; pin++) {
+      if (analogChannel[pin] != 127) {
+        var out = new Uint8Array([
+            REPORT_ANALOG | analogChannel[pin], 0x01]);
+        device.send(out.buffer);
+      }
+    }
+    notifyConnection = true;
+    setTimeout(function() {
+      notifyConnection = false;
+    }, 100);
+  }
+
+  function processSysexMessage() {
+    var subCommand = storedInputData[0];
+    if (!SYSEX_RESPONSE[subCommand]) {
+      return;
+    }
+    SYSEX_RESPONSE[subCommand](storedInputData);
   }
 
   function processInput(inputData) {
@@ -270,12 +276,9 @@
             executeMultiByteCommand = command;
             break;
           case START_SYSEX:
-            console.log("received START_SYSEX");
             parsingSysex = true;
             sysexBytesRead = 0;
             break;
-          case END_SYSEX:
-            console.log("received END_SYSEX");
         }
       }
     }
